@@ -1,4 +1,4 @@
-# snek bits
+# snek bits 🐍
 Random bag of Python utilities.
 
 ## Config
