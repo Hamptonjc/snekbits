@@ -51,7 +51,7 @@ class Config(SimpleNamespace):
         # Convert to dictionary
         cfg = self.dict()
         # Load the module class
-        Class = self._get_module_class(next(iter(cfg)))
+        Class, init_fn = self._get_module_class(next(iter(cfg)))
         # Get argments to provide to class
         kwargs = copy.deepcopy(next(iter(cfg.values())).dict())
         # Check arguments for classes/instances that need to be loaded
@@ -78,7 +78,8 @@ class Config(SimpleNamespace):
                 # Else update arguments dictionary with additional argument
                 else:
                     kwargs[k] = v
-        return Class(**kwargs)
+        return (Class(**kwargs) if init_fn is None
+                else getattr(Class, init_fn)(**kwargs))
     
     def load_all_instances(self) -> None:
         for k,v in self.dict().items():
@@ -96,10 +97,18 @@ class Config(SimpleNamespace):
     def _get_module_class(self, spec: str) -> Any:
         module_and_class = spec.split('.')
         clss = module_and_class[-1]
-        mod = '.'.join(module_and_class[:-1])
-        mod = importlib.import_module(mod)
-        Class = getattr(mod, clss)
-        return Class
+        if clss[-2:] == '()':
+            init_fn = clss[:-2]
+            clss = module_and_class[-2]
+            mod = '.'.join(module_and_class[:-2])
+            mod = importlib.import_module(mod)
+            Class = getattr(mod, clss)
+            return Class, init_fn
+        else:
+            mod = '.'.join(module_and_class[:-1])
+            mod = importlib.import_module(mod)
+            Class = getattr(mod, clss)
+        return Class, None
 
     def has(self, attr: str) -> bool:
         if (hasattr(self, attr) and
